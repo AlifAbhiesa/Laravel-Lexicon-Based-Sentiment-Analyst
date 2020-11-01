@@ -1,5 +1,8 @@
 <?php
 
+use Exception;
+use Illuminate\Support\Facades\Log;
+
 require_once "sentitext.php";
 
 //Constants
@@ -193,40 +196,47 @@ class SentimentIntensityAnalyzer{
         valence.
 	*/	
     function getSentiment($text){
-        $this->current_sentitext = new SentiText($text);
+		try{
+			$text = preg_replace('/[0-9]+/', '', $text);
+			$this->current_sentitext = new SentiText($text);
   
-        $sentiments = [];
-        $words_and_emoticons = $this->current_sentitext->words_and_emoticons;
-
-		for($i=0;$i<count($words_and_emoticons)-1;$i++){
-			
-            $valence = 0.0;
-            $wordBeingTested = $words_and_emoticons[$i];
-			
-			//If this is a booster word add a 0 valances then go to next word as it does not express sentiment directly
-           /* if ($this->IsBoosterWord($wordBeingTested)){
-				echo "\t\tThe word is a booster word: setting sentiment to 0.0\n";
-			}*/
-			
-			//If the word is not in the Lexicon then it does not express sentiment. So just ignore it.
-			if($this->IsInLexicon($wordBeingTested)){
-				//Special case because kind is in the lexicon so the modifier kind of needs to be skipped
-				if("kind" !=$words_and_emoticons[$i] && "of" != $words_and_emoticons[$i+1]){
-					$valence = $this->getValenceFromLexicon($wordBeingTested);
-
-					$wordInContext = $this->getWordInContext($words_and_emoticons,$i);
-					//If we are here then we have a word that enhance booster words
-					$valence = $this->adjustBoosterSentiment($wordInContext,$valence);
-				}
-
+			$sentiments = [];
+			$words_and_emoticons = $this->current_sentitext->words_and_emoticons;
+	
+			for($i=0;$i<count($words_and_emoticons)-1;$i++){
 				
+				$valence = 0.0;
+				$wordBeingTested = $words_and_emoticons[$i];
+				
+				//If this is a booster word add a 0 valances then go to next word as it does not express sentiment directly
+			   /* if ($this->IsBoosterWord($wordBeingTested)){
+					echo "\t\tThe word is a booster word: setting sentiment to 0.0\n";
+				}*/
+				
+				//If the word is not in the Lexicon then it does not express sentiment. So just ignore it.
+				if($this->IsInLexicon($wordBeingTested)){
+					//Special case because kind is in the lexicon so the modifier kind of needs to be skipped
+					if("kind" !=$words_and_emoticons[$i] && "of" != $words_and_emoticons[$i+1]){
+						$valence = $this->getValenceFromLexicon($wordBeingTested);
+	
+						$wordInContext = $this->getWordInContext($words_and_emoticons,$i);
+						//If we are here then we have a word that enhance booster words
+						$valence = $this->adjustBoosterSentiment($wordInContext,$valence);
+					}
+	
+					
+				}
+				array_push($sentiments,$valence);
 			}
-			array_push($sentiments,$valence);
+			//Once we have a sentiment for each word adjust the sentimest if but is present
+			$sentiments = $this->_but_check($words_and_emoticons, $sentiments);
+	
+			return $this->score_valence($sentiments, $text);
+		}catch(Exception $e){
+			Log::error($e->getMessage().' vendersentiment.php - getSentiment');
+			exit;
 		}
-		//Once we have a sentiment for each word adjust the sentimest if but is present
-        $sentiments = $this->_but_check($words_and_emoticons, $sentiments);
-
-        return $this->score_valence($sentiments, $text);
+        
 	}
 	
 	

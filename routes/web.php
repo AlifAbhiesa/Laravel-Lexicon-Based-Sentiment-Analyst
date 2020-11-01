@@ -18,3 +18,4 @@ Route::get('/', function () {
 });
 
 Route::get('/lexicon', 'LexiconController@index');
+Route::any('/twitter', 'LexiconController@twitter')->name('twitter');
